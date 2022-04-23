@@ -17,6 +17,7 @@ if sys.version_info.major > 2:
     def unicode(*args, **kwargs):
         return str(*args, **kwargs)
 
+
 class LangModel:
     def fit_corpus(self, corpus):
         """Learn the language model for the whole corpus.
@@ -37,7 +38,7 @@ class LangModel:
         num_words = 0.0
         sum_logprob = 0.0
         for s in corpus:
-            num_words += len(s) + 1 # for EOS
+            num_words += len(s) + 1  # for EOS
             sum_logprob += self.logprob_sentence(s)
         return -(1.0/num_words)*(sum_logprob)
 
@@ -57,8 +58,9 @@ class LangModel:
     # required, the list of words the language model suports (including EOS)
     def vocab(self): pass
 
+
 class Unigram(LangModel):
-    def __init__(self, backoff = 0.000001):
+    def __init__(self, backoff=0.000001):
         self.model = dict()
         self.lbackoff = log(backoff, 2)
 
@@ -91,3 +93,84 @@ class Unigram(LangModel):
     def vocab(self):
         return self.model.keys()
 
+
+class Trigram(LangModel):
+    def __init__(self, backoff=0.000001, delta=0.01, smoothing=True):
+        self.model = dict()     # store q(wi|w{i-2}, w{i-1})
+        self.bigram = dict()   # store bigram counts
+        self.unigram = dict()    # store unigram counts
+        self.lbackoff = log(backoff, 2)
+        self.smoothing = smoothing
+        self.delta = delta
+
+    def inc_trigram(self, t):
+        """Count the trigram appearance"""
+        if t in self.model:
+            self.model[t] += 1.0
+        else:
+            self.model[t] = 1.0
+
+    def inc_bigram(self, b):
+        """Count the bigram appearance"""
+        if b in self.bigram:
+            self.bigram[b] += 1.0
+        else:
+            self.bigram[b] = 1.0
+
+    def inc_unigram(self, w):
+        """Count the unigram appearance"""
+        if w in self.unigram:
+            self.unigram[w] += 1.0
+        else:
+            self.unigram[w] = 1.0
+
+    def fit_sentence(self, sentence):
+        """Update the model when a sentence is observed"""
+        # find all the trigrams
+        tri_sentence = ['*', '*'] + sentence + ['END_OF_SENTENCE']
+        trigram_list = [' '.join(tri_sentence[i:i+3])
+                        for i in range(len(tri_sentence)-2)]
+        bigram_list = [' '.join(tri_sentence[i:i+2])
+                       for i in range(len(tri_sentence)-1)]
+        # update trigram count
+        for t in trigram_list:
+            self.inc_trigram(t)
+        # update bigram count
+        for b in bigram_list:
+            self.inc_bigram(b)
+        # count vocabulary
+        for u in sentence:
+            self.inc_unigram(u)
+        self.inc_unigram('END_OF_SENTENCE')
+
+    def norm(self):
+        """Normalize and convert to log2-probs."""
+        tot = 0.0
+        for t in self.model:
+            tot += self.model[t]
+        ltot = log(tot,2)
+        for t in self.model:
+            b = ' '.join(t.split(' ')[:2])
+            if self.smoothing:
+                # add delta smoothing
+                self.model[t] = log(self.model[t]+self.delta, 2) - log(
+                    self.bigram[b]+len(self.vocab()), 2) - ltot # loga-logb = log(a/b)
+            else:
+                self.model[t] = log(self.model[t], 2) - \
+                    log(self.bigram[b], 2) - ltot # loga-logb = log(a/b)
+
+    def cond_logprob(self, word, previous):
+        tri_sentence = ''
+        if not previous:
+            tri_sentence = ' '.join(['*', '*', word])
+        elif len(previous) == 1:
+            tri_sentence = ' '.join(['*', previous[0], word])
+        else:
+            tri_sentence = ' '.join(previous[-2:]+[word])
+        
+        if tri_sentence in self.model:
+            return self.model[tri_sentence]
+        return self.lbackoff
+
+    def vocab(self):
+        return self.unigram.keys()

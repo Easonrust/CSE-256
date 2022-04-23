@@ -65,14 +65,24 @@ class Sampler:
         return word
 
 if __name__ == "__main__":
-    from lm import Unigram
-    unigram = Unigram()
+    # from lm import Unigram
+    # unigram = Unigram()
+    # corpus = [
+    #     [ "sam", "i", "am" ]
+    # ]
+    # unigram.fit_corpus(corpus)
+    # print(unigram.model)
+    # sampler = Sampler(unigram)
+    # for i in xrange(10):
+    #     print(i, ":", " ".join(str(x) for x in sampler.sample_sentence([])))
+    from lm import Trigram
+    trigram = Trigram()
     corpus = [
         [ "sam", "i", "am" ]
     ]
-    unigram.fit_corpus(corpus)
-    print(unigram.model)
-    sampler = Sampler(unigram)
-    for i in xrange(10):
+    trigram.fit_corpus(corpus)
+    print(trigram.model)
+    sampler = Sampler(trigram)
+    for i in range(10):
         print(i, ":", " ".join(str(x) for x in sampler.sample_sentence([])))
 
