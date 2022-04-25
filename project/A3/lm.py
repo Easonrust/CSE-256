@@ -95,13 +95,13 @@ class Unigram(LangModel):
 
 
 class Trigram(LangModel):
-    def __init__(self, backoff=0.000001, delta=0.01, smoothing=True):
-        self.model = dict()     # store q(wi|w{i-2}, w{i-1})
-        self.bigram = dict()   # store bigram counts
-        self.unigram = dict()    # store unigram counts
-        self.lbackoff = log(backoff, 2)
-        self.smoothing = smoothing
+    def __init__(self, backoff=0.001, delta=0.001, smoothing=True):
+        self.model = dict()
+        self.bigram = dict()
+        self.unigram = dict()
         self.delta = delta
+        self.smoothing = smoothing
+        self.lbackoff = log(backoff, 2)
 
     def inc_trigram(self, t):
         """Count the trigram appearance"""
@@ -117,7 +117,7 @@ class Trigram(LangModel):
         else:
             self.bigram[b] = 1.0
 
-    def inc_unigram(self, w):
+    def inc_word(self, w):
         """Count the unigram appearance"""
         if w in self.unigram:
             self.unigram[w] += 1.0
@@ -125,39 +125,33 @@ class Trigram(LangModel):
             self.unigram[w] = 1.0
 
     def fit_sentence(self, sentence):
-        """Update the model when a sentence is observed"""
-        # find all the trigrams
-        tri_sentence = ['*', '*'] + sentence + ['END_OF_SENTENCE']
-        trigram_list = [' '.join(tri_sentence[i:i+3])
-                        for i in range(len(tri_sentence)-2)]
-        bigram_list = [' '.join(tri_sentence[i:i+2])
-                       for i in range(len(tri_sentence)-1)]
-        # update trigram count
+        sentence = ['*', '*'] + sentence + ['END_OF_SENTENCE']
+        trigram_list = [' '.join(sentence[i:i+3])
+                        for i in range(len(sentence)-2)]
+        bigram_list = [' '.join(sentence[i:i+2])
+                       for i in range(len(sentence)-1)]
+
         for t in trigram_list:
             self.inc_trigram(t)
-        # update bigram count
+
         for b in bigram_list:
             self.inc_bigram(b)
-        # count vocabulary
+
         for u in sentence:
-            self.inc_unigram(u)
-        self.inc_unigram('END_OF_SENTENCE')
+            self.inc_word(u)
+        self.inc_word('END_OF_SENTENCE')
 
     def norm(self):
         """Normalize and convert to log2-probs."""
-        tot = 0.0
-        for t in self.model:
-            tot += self.model[t]
-        ltot = log(tot,2)
         for t in self.model:
             b = ' '.join(t.split(' ')[:2])
-            if self.smoothing:
-                # add delta smoothing
-                self.model[t] = log(self.model[t]+self.delta, 2) - log(
-                    self.bigram[b]+len(self.vocab()), 2) - ltot # loga-logb = log(a/b)
+            if not self.smoothing:
+                self.model[t] = log(self.model[t]+self.delta, 2) - \
+                    log(self.bigram[b]+self.delta *
+                        len(self.unigram), 2)
             else:
                 self.model[t] = log(self.model[t], 2) - \
-                    log(self.bigram[b], 2) - ltot # loga-logb = log(a/b)
+                    log(self.bigram[b], 2)
 
     def cond_logprob(self, word, previous):
         tri_sentence = ''
@@ -167,10 +161,86 @@ class Trigram(LangModel):
             tri_sentence = ' '.join(['*', previous[0], word])
         else:
             tri_sentence = ' '.join(previous[-2:]+[word])
-        
+
         if tri_sentence in self.model:
             return self.model[tri_sentence]
-        return self.lbackoff
+        else:
+            if self.smoothing:
+                bi_sentence = ' '.join(tri_sentence.split(' ')[:2])
+                if bi_sentence in self.bigram:
+                    return log(self.delta, 2) - log(self.bigram[bi_sentence] + self.delta * len(self.unigram), 2)
+                else:
+                    return -log(len(self.vocab()), 2)
+            else:
+                return self.lbackoff
+
+    def vocab(self):
+        return self.unigram.keys()
+
+
+class Bigram(LangModel):
+    def __init__(self, backoff=0.001, delta=0.01, smoothing=True):
+        self.model = dict()
+        self.bigram = dict()
+        self.unigram = dict()
+        self.delta = delta
+        self.smoothing = smoothing
+        self.lbackoff = log(backoff, 2)
+
+    def inc_bigram(self, b):
+        if b in self.bigram:
+            self.bigram[b] += 1.0
+        else:
+            self.bigram[b] = 1.0
+
+    def inc_word(self, w):
+        if w in self.unigram:
+            self.unigram[w] += 1.0
+        else:
+            self.unigram[w] = 1.0
+
+    def fit_sentence(self, sentence):
+        sentence = ['*'] + sentence + ['END_OF_SENTENCE']
+        bigram_list = [' '.join(sentence[i:i+2])
+                       for i in range(len(sentence)-1)]
+
+        for b in bigram_list:
+            self.inc_bigram(b)
+
+        for u in sentence:
+            self.inc_word(u)
+        self.inc_word('END_OF_SENTENCE')
+
+    def norm(self):
+        """Normalize and convert to log2-probs."""
+        for b in self.bigram:
+            u = b.split(' ')[0]
+            if self.smoothing:
+                self.model[b] = log(self.bigram[b]+self.delta, 2) - \
+                    log(self.unigram[u]+self.delta *
+                        len(self.unigram), 2)
+            else:
+                self.model[b] = log(self.bigram[b], 2) - \
+                    log(self.unigram[b], 2)
+
+    def cond_logprob(self, word, previous):
+        bi_sentence = ''
+        if not previous:
+            bi_sentence = ' '.join(['*', word])
+        else:
+            bi_sentence = ' '.join([previous[-1], word])
+
+        if bi_sentence in self.model:
+            return self.model[bi_sentence]
+        else:
+            if self.smoothing:
+                uni_sentence = bi_sentence.split(' ')[0]
+                if uni_sentence in self.unigram:
+                    return log(self.delta, 2) - log(self.unigram[uni_sentence] + self.delta * len(self.unigram), 2)
+                else:
+                    return -log(len(self.vocab()), 2)
+            else:
+                return self.lbackoff
 
     def vocab(self):
         return self.unigram.keys()
