@@ -104,22 +104,19 @@ class Trigram(LangModel):
         self.lbackoff = log(backoff, 2)
 
     def inc_trigram(self, t):
-        """Count the trigram appearance"""
-        if t in self.model:
+        if t in self.model.keys():
             self.model[t] += 1.0
         else:
             self.model[t] = 1.0
 
     def inc_bigram(self, b):
-        """Count the bigram appearance"""
-        if b in self.bigram:
+        if b in self.bigram.keys():
             self.bigram[b] += 1.0
         else:
             self.bigram[b] = 1.0
 
     def inc_word(self, w):
-        """Count the unigram appearance"""
-        if w in self.unigram:
+        if w in self.unigram.keys():
             self.unigram[w] += 1.0
         else:
             self.unigram[w] = 1.0
@@ -145,7 +142,7 @@ class Trigram(LangModel):
         """Normalize and convert to log2-probs."""
         for t in self.model:
             b = ' '.join(t.split(' ')[:2])
-            if not self.smoothing:
+            if self.smoothing:
                 self.model[t] = log(self.model[t]+self.delta, 2) - \
                     log(self.bigram[b]+self.delta *
                         len(self.unigram), 2)
@@ -162,13 +159,13 @@ class Trigram(LangModel):
         else:
             tri_sentence = ' '.join(previous[-2:]+[word])
 
-        if tri_sentence in self.model:
+        if tri_sentence in self.model.keys():
             return self.model[tri_sentence]
         else:
             if self.smoothing:
                 bi_sentence = ' '.join(tri_sentence.split(' ')[:2])
-                if bi_sentence in self.bigram:
-                    return log(self.delta, 2) - log(self.bigram[bi_sentence] + self.delta * len(self.unigram), 2)
+                if bi_sentence in self.bigram.keys():
+                    return log(self.delta, 2) - log(self.bigram[bi_sentence] + self.delta * len(self.vocab()), 2)
                 else:
                     return -log(len(self.vocab()), 2)
             else:

@@ -175,7 +175,7 @@ def print_table(table, row_names, col_names, latex_file = None):
     try:
         from tabulate import tabulate
         row_format ="{:>15} " * (len(col_names) + 1)
-        rows = map(lambda rt: [rt[0]] + rt[1], zip(row_names,table.tolist()))
+        rows = list(map(lambda rt: [rt[0]] + rt[1], zip(row_names,table.tolist())))
 
         print(tabulate(rows, headers = [""] + col_names))
         if latex_file is not None:
