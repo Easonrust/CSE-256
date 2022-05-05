@@ -12,15 +12,18 @@ def read_counts(counts_file, emission_counts, word_dict, unigram_counts):
         elif line[1] == '1-GRAM':
             unigram_counts[(line[2])] = int(line[0])
 
-def calculate_max_emission_parameter(emission_counts, word_dict, unigram_counts, emission_parameter):
+def compute_e_parameter(emission_counts, unigram_counts, word, tag):
+    return float(emission_counts[(word, tag)]) / float(unigram_counts[(tag)])
+
+def calculate_max_emission_parameter(emission_counts, word_dict, unigram_counts, max_emission_parameter):
     for word in word_dict:
         max_tag = ''
         max_val = 0.0
         for tag in unigram_counts:
-            if float(emission_counts[(word, tag)]) / float(unigram_counts[(tag)]) > max_val:
+            if compute_e_parameter(emission_counts, unigram_counts, word, tag) > max_val:
                 max_val = float(emission_counts[(word, tag)]) / float(unigram_counts[(tag)])
                 max_tag = tag
-        emission_parameter[(word)] = max_tag
+        max_emission_parameter[(word)] = max_tag
 
 def tag_gene(emission_parameter, out_f, dev_file):
     for l in dev_file:
@@ -53,11 +56,11 @@ if __name__ == "__main__":
         sys.stderr.write("ERROR: Cannot read inputfile %s.\n" % arg)
         sys.exit(1)
         
-    emission_counts, unigram_counts, emission_parameter = defaultdict(int), defaultdict(int), defaultdict(int)
+    emission_counts, unigram_counts, max_emission_parameter = defaultdict(int), defaultdict(int), defaultdict(int)
     word_dict = []
 
     read_counts(counts_file, emission_counts, word_dict, unigram_counts)
     counts_file.close()
-    calculate_max_emission_parameter(emission_counts, word_dict, unigram_counts, emission_parameter)
-    tag_gene(emission_parameter, sys.stdout, dev_file)
+    calculate_max_emission_parameter(emission_counts, word_dict, unigram_counts, max_emission_parameter)
+    tag_gene(max_emission_parameter, sys.stdout, dev_file)
     dev_file.close()
