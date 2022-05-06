@@ -15,57 +15,62 @@ def read_counts(counts_file, word_tag, word_dict, ngram_tag):
             ngram_tag[tuple(line[2:])] = int(line[0])
 
 
-def efunc(word_tag, word_dict, ngram_tag, x, y):
-    """
-    e(x|y) = p(x, y) / p(y)
-    """
+def calculate_e_parameter(word_tag, word_dict, ngram_tag, x, y):
     if x in word_dict:
         return float(word_tag[(x, y)]) / float(ngram_tag[(y,)])
     else:
-        return float(word_tag[('_RARE_', y)]) / float(ngram_tag[(y,)])
+        rare_class = "_RARE_"
+        if all(c.isdigit() for c in x):
+            rare_class = "_RARE_NUM_"
+        elif x.isupper():
+            rare_class = "_RARE_CAP_"
+        return float(word_tag[(rare_class, y)]) / float(ngram_tag[(y,)])
 
 
-def qfunc(ngram_tag, v, w, u):
-    """
-    q(v|w,u)
-    """
-    return ngram_tag[w, u, v] / float(ngram_tag[w, u])
+def calculate_q_parameter(ngram_tag, v, w, u):
+    return float(ngram_tag[w, u, v]) / float(ngram_tag[w, u])
 
 
 def viterbi(word_tag, word_dict, ngram_tag, word_list):
     word_list = ['*', '*'] + word_list
     tag_set = ('O', 'I-GENE')
-    bp_dict = {}
-    pi_dict = {(1, '*', '*'): 1}
+    bp = {}
+    pi = {(0, '*', '*'): 1}
 
     # solve pi_dict and bp_dict
-    for k in range(2, len(word_list)):
-        u_set = tag_set
-        v_set = tag_set
-        w_set = tag_set
-        if k == 2:
-            u_set = ('*', )
-            w_set = ('*', )
-        elif k == 3:
-            w_set = ('*', )
+    for k in range(1, len(word_list)+1):
+        s_k_1 = tag_set
+        s_k_2 = tag_set
+        s_k = tag_set
+        if k == 1:
+            s_k_1 = ('*')
+            s_k_2 = ('*')
+        elif k == 2:
+            s_k_2 = ('*')
         # for different (u, v), find the optimal w
-        for u, v in itertools.product(u_set, v_set):
-            e = efunc(word_tag, word_dict, ngram_tag, word_list[k], v)
-            candi_list = [
-                ((pi_dict[k - 1, w, u] * qfunc(ngram_tag, v, w, u) * e), w) for w in w_set]
-            pi, bp = max(candi_list, key=lambda x: x[0])
-            pi_dict[k, u, v] = pi
-            bp_dict[k, u, v] = bp
+        for u in s_k_1:
+            for v in s_k:
+                e = calculate_e_parameter(
+                    word_tag, word_dict, ngram_tag, word_list[k-1], v)
+                max_pi = -100
+                max_bp = '*'
+                for w in s_k_2:
+                    if max_pi < (pi[k - 1, w, u] * calculate_q_parameter(ngram_tag, v, w, u) * e):
+                        max_pi = (pi[k - 1, w, u] *
+                                  calculate_q_parameter(ngram_tag, v, w, u) * e)
+                        max_bp = w
+                pi[k, u, v] = max_pi
+                bp[k, u, v] = max_bp
 
     # 'STOP' is the last one
-    uv_list = [(pi_dict[len(word_list) - 1, u, v] * qfunc(ngram_tag, 'STOP', u, v), (u, v))
-               for (u, v) in itertools.product(tag_set, tag_set)]
+    uv_list = [(pi[len(word_list), u, v] * calculate_q_parameter(ngram_tag,
+                'STOP', u, v), (u, v))for (u, v) in itertools.product(tag_set, tag_set)]
     tagn_1, tagn = max(uv_list, key=lambda x: x[0])[1]
     tag_list = [0] * len(word_list)
     tag_list[-2] = tagn_1
     tag_list[-1] = tagn
     for i in reversed(range(len(tag_list) - 2)):
-        tag_list[i] = bp_dict[i + 2, tag_list[i + 1], tag_list[i + 2]]
+        tag_list[i] = bp[i + 2 + 1, tag_list[i + 1], tag_list[i + 2]]
     return tag_list[2:]
 
 
