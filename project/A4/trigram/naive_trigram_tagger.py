@@ -27,13 +27,13 @@ def calculate_q_parameter(ngram_tag, v, w, u):
 
 
 def viterbi(word_tag, word_dict, ngram_tag, word_list):
-    word_list = ['*', '*'] + word_list
+    n = len(word_list)
     tag_set = ('O', 'I-GENE')
     bp = {}
     pi = {(0, '*', '*'): 1}
 
     # solve pi_dict and bp_dict
-    for k in range(1, len(word_list)+1):
+    for k in range(1, n+1):
         s_k_1 = tag_set
         s_k_2 = tag_set
         s_k = tag_set
@@ -58,15 +58,15 @@ def viterbi(word_tag, word_dict, ngram_tag, word_list):
                 bp[k, u, v] = max_bp
 
     # 'STOP' is the last one
-    uv_list = [(pi[len(word_list), u, v] * calculate_q_parameter(ngram_tag,
+    uv_list = [(pi[n, u, v] * calculate_q_parameter(ngram_tag,
                 'STOP', u, v), (u, v)) for (u, v) in itertools.product(tag_set, tag_set)]
     tagn_1, tagn = max(uv_list, key=lambda x: x[0])[1]
-    tag_list = [0] * len(word_list)
-    tag_list[-2] = tagn_1
-    tag_list[-1] = tagn
-    for i in reversed(range(len(tag_list) - 2)):
-        tag_list[i] = bp[i + 2 + 1, tag_list[i + 1], tag_list[i + 2]]
-    return tag_list[2:]
+    tag_list = [0] * (n+1)
+    tag_list[n-1] = tagn_1
+    tag_list[n] = tagn
+    for i in range(n-2, 0, -1):
+        tag_list[i] = bp[i + 2, tag_list[i + 1], tag_list[i + 2]]
+    return tag_list[1:]
 
 
 def tag_gene(word_tag, word_dict, ngram_tag, out_f, dev_file):

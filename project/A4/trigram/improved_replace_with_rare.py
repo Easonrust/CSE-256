@@ -43,18 +43,10 @@ def replace_with_rare(corpusfile, output, word_counts):
             linew = line.split(' ')
             if word_counts[linew[0]] < threshold:
                 rare_class = "_RARE_"
-                if linew[0].isnumeric():
+                if all(c.isdigit() for c in linew[0]):
                     rare_class = "_RARE_NUM_"
-                if linew[0].isalpha() and linew[0].isupper():
-                    rare_class = "_RARE_ALUP_"
-                if linew[0].isalpha() and linew[0].islower():
-                    rare_class = "_RARE_ALLOW_"
-                # if linew[0].isalpha():
-                #     rare_class = "_RARE_AL_"
-                # if linew[0].isalnum():
-                #     rare_class = "_RARE_ALNUM_"
-                if not linew[0].isalnum():
-                    rare_class = "_RARE_PUNCT_"
+                elif linew[0].isupper():
+                    rare_class = "_RARE_CAP_"
                 output.write(rare_class+" %s\n" % (linew[1]))
             else:
                 output.write(line + "\n")

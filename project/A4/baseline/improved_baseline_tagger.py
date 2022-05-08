@@ -37,10 +37,18 @@ def tag_gene(emission_parameter, out_f, dev_file):
                 out_f.write("%s %s\n" % (line, emission_parameter[(line)]))
             else:
                 rare_class = "_RARE_"
-                if all(c.isdigit() for c in line[0]):
+                if line[0].isnumeric():
                     rare_class = "_RARE_NUM_"
-                elif line[0].isupper():
-                    rare_class = "_RARE_CAP_"
+                if line[0].isalpha() and line[0].isupper():
+                    rare_class = "_RARE_ALUP_"
+                if line[0].isalpha() and line[0].islower():
+                    rare_class = "_RARE_ALLOW_"
+                # if line[0].isalpha():
+                #     rare_class = "_RARE_AL_"
+                # if line[0].isalnum():
+                #     rare_class = "_RARE_ALNUM_"
+                if not line[0].isalnum():
+                    rare_class = "_RARE_PUNCT_"
                 out_f.write("%s %s\n" %
                             (line, emission_parameter[(rare_class)]))
         else:
