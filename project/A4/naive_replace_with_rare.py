@@ -1,48 +1,28 @@
-'''
-@Author: 
-@Date: 2019-11-01 19:58:55
-@LastEditors: Shihan Ran
-@LastEditTime: 2019-11-01 21:06:03
-@Email: rshcaroline@gmail.com
-@Software: VSCode
-@License: Copyright(C), UCSD
-@Description: 
-'''
-
 import sys
 from collections import defaultdict
 
 
-threshold = 5
-
-
 def read_counts(corpusfile):
-    """
-    Read the corpusfile and return word counts
-    """
     word_counts = defaultdict(int)
 
     for l in corpusfile:
         line = l.strip()
         if line:
-            linew = line.split(' ')
-            if (linew[0]) in word_counts:
-                word_counts[(linew[0])] += 1
+            lineArr = line.split(' ')
+            if (lineArr[0]) in word_counts:
+                word_counts[(lineArr[0])] += 1
             else:
-                word_counts[(linew[0])] = 1
+                word_counts[(lineArr[0])] = 1
     return word_counts
 
 
 def replace_with_rare(corpusfile, output, word_counts):
-    """
-    Read the corpus_file and replace rare words with rare word classes
-    """
     for l in corpusfile:
         line = l.strip()
         if line:
-            linew = line.split(' ')
-            if word_counts[linew[0]] < threshold:
-                output.write("_RARE_ %s\n" % (linew[1]))
+            lineArr = line.split(' ')
+            if word_counts[lineArr[0]] < 5:
+                output.write("_RARE_ %s\n" % (lineArr[1]))
             else:
                 output.write(line + "\n")
         else:
@@ -51,8 +31,8 @@ def replace_with_rare(corpusfile, output, word_counts):
 
 def usage():
     print("""
-    python ./replace_with_rare.py [input_file] > [output_file]
-        Read in a gene tagged training input file and produce new training file.
+    python naive_replace_with_rare.py [input_file] > [output_file]
+        Read in a gene tagged training input file and replace the rare or unseen word with single rare class.
     """)
 
 

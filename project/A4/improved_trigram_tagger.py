@@ -1,4 +1,3 @@
-
 import sys
 from collections import defaultdict
 import math
@@ -19,7 +18,18 @@ def calculate_e_parameter(word_tag, word_dict, ngram_tag, x, y):
     if x in word_dict:
         return float(word_tag[(x, y)]) / float(ngram_tag[(y,)])
     else:
-        return float(word_tag[('_RARE_', y)]) / float(ngram_tag[(y,)])
+        rare_class = "_RARE_"
+        if x.isnumeric():
+            rare_class = "_RARE_NUM_"
+        # if x.isalpha() and x.isupper():
+        #     rare_class = "_RARE_ALUP_"
+        # if x.isalpha() and x.islower():
+        #     rare_class = "_RARE_ALLOW_"
+        if x.isalpha():
+            rare_class = "_RARE_AL_"
+        if not x.isalnum():
+            rare_class = "_RARE_PUNCT_"
+        return float(word_tag[(rare_class, y)]) / float(ngram_tag[(y,)])
 
 
 def calculate_q_parameter(ngram_tag, v, w, u):
@@ -32,7 +42,7 @@ def viterbi(word_tag, word_dict, ngram_tag, word_list):
     bp = {}
     pi = {(0, '*', '*'): 1}
 
-    # solve pi_dict and bp_dict
+    # dynamic programming with backpointers
     for k in range(1, n+1):
         s_k_1 = tag_set
         s_k_2 = tag_set
@@ -42,7 +52,6 @@ def viterbi(word_tag, word_dict, ngram_tag, word_list):
             s_k_2 = ('*')
         elif k == 2:
             s_k_2 = ('*')
-        # for different (u, v), find the optimal w
         for u in s_k_1:
             for v in s_k:
                 e = calculate_e_parameter(
@@ -57,13 +66,12 @@ def viterbi(word_tag, word_dict, ngram_tag, word_list):
                 pi[k, u, v] = max_pi
                 bp[k, u, v] = max_bp
 
-    # 'STOP' is the last one
     uv_list = [(pi[n, u, v] * calculate_q_parameter(ngram_tag,
                 'STOP', u, v), (u, v)) for (u, v) in itertools.product(tag_set, tag_set)]
-    tagn_1, tagn = max(uv_list, key=lambda x: x[0])[1]
+    tag_n_1, tag_n = max(uv_list, key=lambda x: x[0])[1]
     tag_list = [0] * (n+1)
-    tag_list[n-1] = tagn_1
-    tag_list[n] = tagn
+    tag_list[n-1] = tag_n_1
+    tag_list[n] = tag_n
     for i in range(n-2, 0, -1):
         tag_list[i] = bp[i + 2, tag_list[i + 1], tag_list[i + 2]]
     return tag_list[1:]
@@ -86,8 +94,8 @@ def tag_gene(word_tag, word_dict, ngram_tag, out_f, dev_file):
 
 def usage():
     print("""
-    python baseline.py [input_train_counts] [input_dev_file] > [output_file]
-        Read in counts file and dev file, produce tagging results.
+    python improved_trigram_tagger.py [input_file_1] [input_file_2] > [output_file]
+        Read in counts file and dev file, output tagging results.
     """)
 
 
