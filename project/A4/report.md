@@ -30,17 +30,30 @@ Therefore, we can get the result on the dev set using the new baseline model. Th
 | --------- | -------- | -------- |
 | 0.178760  | 0.579439 | 0.273228 |
 
+Compared to the naive baseline model where we only use single rare class and get F1-Score at 0.256116, I think the reason for this that the new baseline model make the rare and unseen words more informative.
 ## Trigram HMM
 
 ### The Purpose of the Viterbi Algorithm
 
-The Viterbi algorithm is a dynamic programming algorithm for obtaining the maximum a posteriori probability estimate of the most likely sequence of hidden states, which are called the Viterbi path, that results in a sequence of observed events. In this case, given the sequence of observations, we can use the Viterbi Algorithm to find the most likely corresponding sequence of hidden states.
-
-In this situation we use  Viterbi algorithm to solve the sequence tagging problem: let $S$ be the potential tag set ${0, I-GENE}$, giving an sentence($x_1,...x_n$) as input, we are going to find that $(y_1...y_{n+1})$, where $y_{n+1}=STOP$ , $y_i \in S$, then:
+In this situation we need to solve the sequence tagging problem: let $S$ be the potential tag set ${0, I-GENE}$, giving an sentence($x_1,...x_n$) as input, we are going to find that $(y_1...y_{n+1})$, where $y_{n+1}=STOP$ , $y_i \in S$, then:
 $$
 arg\ max_{y_1...y_{n+1}}p(x_1...x_n, y_1 ... y_{n+1}) \\
 p(x_1...x_n, y_1 ... y_{n+1})=\prod_{i=1}^{n+1} q(y_i|y_{i-2},y_{i-1})\prod_{i=1}^{n}e(x_i|y_i)
 $$
+The Viterbi algorithm is a dynamic programming algorithm for obtaining the maximum a posteriori probability estimate of the most likely sequence of hidden states, which are called the Viterbi path, that results in a sequence of observed events. In this case, given the sequence of observations, we can use the Viterbi Algorithm to find the most likely corresponding sequence of hidden states and it can solve the above problem recursively.
+
+Let $n$ represent the length of the input, and $|S|$ is the length of the tag set. Let's compare the Viterbi algorithm(dynamic programming) with brute force and greedy method.
+
+Using Viterbi algorithm, we need to calculate $n|S|^2$  entries in the dynamic programm table(which is defined in the following section), and it take us $O(|S|)$ time to calculate each entry. Therefore the time complexity for Viterbi Algorithm is $O(n|S|^3)$.
+
+Using brute force method, it take us $O(|S|)$ time to tag each word, and the time complexity is $O(|S|^n)$, which is too bard.
+
+Using the greedy method, the tagger will greedily choose the best tag for each word and then move on to next one, but in this case we can not performs a global optimisation and guarantees to find the most likely state sequence by exploring all possible state sequences.
+
+Thus in this case, we use Viterbi algorithm to solve the problem.
+
+
+
 ### Specifics of Implementation
 
 When implementing the Viterbi algorithm, we let $y_0=y_1=*$, and $y_{n+1}=STOP$. Let $S_{-1}=S_0=\{*\}$ and $S_k=S\ for \ k \in{1...n}$. Then we using the dynamic programming table $\pi(k,u,v)$ to represent the maximum probability of a tag sequence ending in tags $u,v$ at position $k$ given the input. Then we show how to compute $\pi(k,u,v)$ and the process of the algorithm:
@@ -105,3 +118,5 @@ Where $|S|$ is the length of the tag set, we still choose the **(\_RARE\_AL\_, \
 | 0.555012  | 0.353583 | 0.431970 |
 
 We find that the result F1-Score is 0.431970, which is better than the best result 0.429658 we get before.
+
+We think the reason for this is that smoothing parameters can ensure the emission parameter can output a non-zero and valid probability distribution for out-of-vocabulary words as well, thus it can improve the result.
