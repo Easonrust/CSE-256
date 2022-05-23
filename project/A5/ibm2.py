@@ -1,5 +1,4 @@
 import pickle
-from itertools import zip_longest as zip
 
 
 class IBM2:
